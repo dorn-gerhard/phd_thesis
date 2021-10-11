@@ -1,1 +1,2 @@
-# phd_thesis
+# Demo programs to explore open quantum system
+
