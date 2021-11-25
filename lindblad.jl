@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.17.0
+# v0.17.2
 
 using Markdown
 using InteractiveUtils
@@ -7,8 +7,9 @@ using InteractiveUtils
 # This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
 macro bind(def, element)
     quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
         local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : missing
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
         el
     end
 end
@@ -16,10 +17,14 @@ end
 # ╔═╡ 104b6690-212b-11ec-3a2b-25c420f62534
 begin
 	using Plots
+	using Plots.PlotMeasures
+
 	using LinearAlgebra
 	using Kronecker
 	using PlutoUI
 	using SparseArrays
+	using FiniteDifferences
+	#using PlutoTest
 	#https://juliapackages.com/p/kronecker
 	md"""## Packages"""
 end
@@ -61,24 +66,6 @@ begin
 	end
 end
 
-# ╔═╡ 7458474c-3c4d-4a99-9640-4bfd2e6465ea
-@bind 🍎 Scrubbable(1:10)
-
-# ╔═╡ edf8bfba-ca6b-4adf-9a7d-e618ca511a80
-@bind time_r Clock()
-
-# ╔═╡ d7f3dc01-1201-41de-8a63-c3e2bc020cf6
-σ₄ = 5
-
-# ╔═╡ 2e2854f6-8cab-4252-a580-7abc71efd2a0
-rand(2,2)  ⊗ I(2)
-
-# ╔═╡ a646342f-3177-4579-8625-cb7d7ea27a49
-🍎 + σ₄ + time_r
-
-# ╔═╡ 792748ec-199c-41d8-a801-6cd97881ee72
-🍎*4
-
 # ╔═╡ 85bca31d-c3be-46b6-b330-b80648472378
 md""" 
 # System Hamiltonian of bipartite system
@@ -99,6 +86,12 @@ $\sigma_3 = \sigma_z = \begin{pmatrix} 1 & 0 \\ 0 & -1\end{pmatrix}$
 
 """
 
+# ╔═╡ c4406548-2119-480f-9438-22cd8c27e8f3
+md"""
+Coupling strength of interaction Hamiltonian ``H_I``
+👉 $(@bind coupling Select(["normal" => "simple moderate coupling 🧾", "weak" => "weak coupling 🔗", "strong" => "strong coupling ⛓"]))
+"""
+
 # ╔═╡ 913d405a-e525-49d6-9021-227543b37953
 md"""
 # Initial state ``ρ(t_0)``
@@ -106,7 +99,7 @@ md"""
 
 # ╔═╡ a36e5515-e7f9-4c34-a48e-52a004d80f23
 md"""
-Switch from different initial states 👉 $(@bind initial_state Select(["thesis" => "Example in 📖", "example" => "Another example 📍","slider"=> "Choose your own initial state 📐"]))
+Switch from different initial states 👉 $(@bind initial_state Select(["thesis" => "Example in 📖", "product_state" => "Product state ♾", "choi_positive" => "Choi positive ➕", "back_in_time" => "Before product state 🕚", "s3b3" =>"3 x 3 🔱", "example" => "weak initial correlation 📍","slider"=> "Choose your own initial state 📐"]))
 """
 
 # ╔═╡ 7479e663-e533-442c-8324-c60f4849c470
@@ -116,7 +109,194 @@ md"""
 
 # ╔═╡ 0872a46c-4f4b-49fa-8152-9193b71f332b
 md""" 
-## Initial product state
+## Dynamical map Λ
+"""
+
+# ╔═╡ c39065df-e7dc-4f09-b5c5-6066eec391ba
+md"""
+## Inverse of a dynamical map
+"""
+
+# ╔═╡ 88dcaaef-4782-4c64-acbe-91c9052cc955
+
+
+# ╔═╡ b4e4baa5-338a-43b4-9035-d6be8e2d5e17
+function pauli_coefficients(D)
+	return [real(D[1,2]), -imag(D[1,2]), real(D[1,1]) - 0.5]
+end
+
+# ╔═╡ 19b181eb-8c95-41e2-9f4a-786cb5a25b8b
+md"""
+azimuthal angle 👉 $(@bind azim Slider(0:90, default = 30, show_value = true))
+
+horizontal angle 👉 $(@bind hori Slider(0:90, default = 30, show_value = true))
+
+"""
+
+# ╔═╡ 38459aa7-557c-4252-a150-ba475a52a860
+begin
+n = 50
+u = range(0,stop=2*π,length=n);
+v = range(0,stop=π,length=n);
+
+x = cos.(u) * sin.(v)';
+y = sin.(u) * sin.(v)';
+z = ones(n) * cos.(v)';
+
+# The rstride and cstride arguments default to 10
+#plot(x[:],y[:],z[:])#, seriestype = :surface)
+	
+	#surface(x,y,z, fill_alpha = 0.5)
+ surface(
+  x,y,z,
+  show_axis = false,
+  color = fill(RGBA(1.,.5,1.,0.6), n, n),
+ # limits = HyperRectangle(Vec3f0(-1.01), Vec3f0(1.01))
+)
+	
+end
+
+# ╔═╡ 455440b2-fc42-4db3-b9dd-eedd3406103a
+ff(x,y) = (((x.^2 + y.^2) < 1) ? sqrt(1- x.^2 - y.^2) : NaN)
+
+# ╔═╡ 67c8115a-eb59-4215-a23d-a00065baeaba
+ff_(x,y) = (((x.^2 + y.^2) < 1) ? -sqrt(1- x.^2 - y.^2) : NaN)
+
+# ╔═╡ 001db95a-4b60-483f-a863-7142269c9bbf
+begin
+
+surface(-1:0.1:1, -1:0.1:1, ff)
+plot!(-1:0.1:1, -1:0.1:1,  ff_, seriestype = :wireframe)
+
+
+end
+
+# ╔═╡ 43b7be4e-9bae-4b1e-b536-4dd13aee7712
+md"""
+### Analysis of total time evolution superoperator
+"""
+
+# ╔═╡ 4754c50a-0d88-477d-a832-1c0eb8ccddac
+md"""
+Spectral analysis of total time evolution superoperator 
+
+$\mathcal{U} = U^{\text{*}} \otimes U$
+
+- ``\mathcal{U}`` is unitary (normal)
+- ``\mathcal{U}`` is not Hermitian
+- ``\mathfrak{C}_{\mathcal{U}} = \text{vec } U \cdot (\text{vec }U)^\dagger`` has rank 1, ``\lambda_1 = n``
+"""
+
+# ╔═╡ b7dfd6ac-6246-4655-a2dd-3d0e46e2b87e
+md"""
+### Time series of dynamical map
+"""
+
+# ╔═╡ 9a519b1a-6b0f-430c-869a-f8b902e862b6
+md"""
+### CP breaking of dynamical map with initial correlations in the beginning
+"""
+
+# ╔═╡ ea84b314-dfaf-4799-ac46-541b6a1318cd
+# Examination why ``\Lambda(t, \varepsilon)`` is always not cp
+
+# ╔═╡ d6619751-decf-40a4-874a-cbf0571de81c
+@bind test_time Slider(0:0.00001:0.1, show_value = true)
+
+# ╔═╡ be1e32d7-a48a-404c-b25c-e435a9b4c0ce
+md"""
+### Decomposition property
+"""
+
+# ╔═╡ 2cd1627f-6056-4c36-b089-c563097853f9
+
+
+# ╔═╡ a8c70b91-6783-4507-9194-0a26f1e49860
+md"""
+Question: is the derivative always completely positive also for 
+
+$\mathcal{K}(t,t_0) = \frac{\text{d}}{\text{d}\tau} \Lambda(\tau,t_0)\Big\rvert_{\tau = t}$
+"""
+
+# ╔═╡ 6d2b167f-ded7-4e6d-9d77-e2a555d1b46c
+md"""
+### Dynamical maps from generators
+"""
+
+# ╔═╡ c3696c66-4b84-40b6-af9f-d3c22ea84e35
+
+
+# ╔═╡ 80f1a784-acf1-4df0-a36b-02665257143f
+md"""
+# Differential picture: Master equations and Lindblad forms
+"""
+
+# ╔═╡ 8f273160-c0ab-41e2-85ac-653db2ee7438
+md"""
+## Calculate Lindblad form (H, Γ, Aᵢ) from Kraus operators
+This section illustrates how to derive from the **Kraus operators** ``\boldsymbol{K}_i`` of a CPT dynamical map the **Lindblad form**, consisting of the Lamb-shift Hamiltonian ``\boldsymbol{H}``, the positive decoherence matrix ``\boldsymbol{\Gamma}`` and the traceless orthonormal operator basis ``\boldsymbol{A}_i``
+
+$\dot{\sigma}(t) = -\text{i} [\boldsymbol{H},\sigma(t)] + \sum_{ij} \Gamma_{ij}(t) \left(\boldsymbol{A}_i \sigma(t) \boldsymbol{A}_j^\dagger - \frac{1}{2} \{\boldsymbol{A}_j^\dagger \boldsymbol{A}_i, \sigma(t)\} \right)$
+"""
+
+# ╔═╡ b9bc1429-bd9a-452b-9ddf-34b91217de96
+md"
+$\text{Tr} \boldsymbol{A}_i = 0, \quad \text{for } i\geq 2$
+
+$\langle \boldsymbol{A}_i, \boldsymbol{A}_j \rangle_{\text{HS}} = \delta_{ij}$
+"
+
+# ╔═╡ 06883a55-b99c-4edd-ae8b-e9cc9abe2b99
+md"""
+Check if derivative of dynamical map ``\Lambda(t,t_0)`` at time ``t_1 > t_0``  is obtained by the derivative of ``\Lambda(t,t_1)`` at time ``t_1``
+
+
+"""
+
+# ╔═╡ 3553ea01-ba81-48cd-be9f-886508a70a2d
+	#A = [zeros(ComplexF64,4,4) for _=1:16]
+	#A[1] = I(4)/sqrt(4)
+	#A[2:16] = [unity(i,4) for i = 2:16]
+	#L = [real(tr(A[i])) .> 0 for i = 1:16]
+	#for i = [6,11,16]
+	#	A[i] = (A[i] - I(4)/4)*sqrt(2/3)
+	#end
+
+# ╔═╡ eaafb3a3-a12b-4c5a-947a-2bcd376612c0
+
+
+# ╔═╡ 022cc2fa-f6d4-4fec-b7ac-645890984d46
+md"""
+### Direct derivative of dynamcial map
+Deal with 
+
+$\frac{d}{dt} \mathfrak{C}\Big(\exp(-i (H_S \otimes \mathbb{1} + \mathbb{1} \otimes H_B + H_I)  t)\Big)$
+
+"""
+
+# ╔═╡ 558e2f3a-2942-4062-982e-f5c94c0f9588
+begin
+# choi(A ⊗ᶜ B) = A[:] ⋅ B[:]ᵗ
+# exp(A ⊗ I) = exp(A) ⊗ I
+
+
+md"""
+Note that
+
+$\exp(A \otimes \mathbb{1}) = \exp(A) \otimes \mathbb{1}$
+and that
+
+$\mathfrak{C}(A \overset{c}{\otimes} B) = \text{vec} A \cdot (\text{vec} B)^T$
+
+Decompose equation above to
+
+$\frac{d}{dt} \mathfrak{C}\Big(\exp(-i (H_S \overset{c}{\otimes} \mathbb{1} )  t)\Big) = \text{vec} \Big[-iH_S \cdot \exp(-iH_S t)\Big] \cdot (\text{vec } \mathbb{1})^T$
+"""
+end
+
+# ╔═╡ 878a884d-196c-4403-bc86-9e642956441c
+md"""
+Next step: decompose exponential, especially think of how to decompose $H_I$
 """
 
 # ╔═╡ 5e1377b7-c784-4e42-8190-ffbf48f0ecc1
@@ -146,13 +326,38 @@ TableOfContents()
 
 # ╔═╡ 7f43573f-010f-455a-82c7-f2f509cce3d3
 begin
-	time_slider = @bind time Slider(0:0.1:20, default = 1, show_value = true)
+	time_slider = @bind time Slider(0:0.001:20, default = 1, show_value = true)
+	inter_time_slider = @bind inter_time Slider(0:0.0001:1, default = 0, show_value = true)
 	md""" ## Interactive widgets
 	Definition of Sliders"""
 end
 
+# ╔═╡ f850340c-7a18-4693-8822-7ef29e3d2675
+begin
+ md"""
+ Intermediate time to examine new dynamical map 👉 $(inter_time_slider)
+ """
+
+
+end
+
+# ╔═╡ 95c1685e-039b-492b-8a8c-d2914036addb
+time_slider
+
+# ╔═╡ c2af9765-647f-4f25-adc9-139f7333413c
+inter_time_slider
+
 # ╔═╡ e8c989d6-9ba6-40d1-ad36-d768172d5f5e
 time_slider
+
+# ╔═╡ 66b53661-7f06-4290-94a1-28240e29f067
+time_slider
+
+# ╔═╡ 9e17a64b-4b49-44fb-8b5d-b409d6897de1
+inter_time_slider
+
+# ╔═╡ 754b5aaf-841c-445d-ad8f-06a8e7ed391d
+inter_time
 
 # ╔═╡ 002504f4-e74a-4e8c-80fa-f4c5f2e90df0
 time_slider
@@ -218,20 +423,46 @@ scrub_a1, scrub_a2, scrub_a3
 # ╔═╡ dc95c17d-de0f-4b72-b57e-0dab473a69cd
 [scrub_1,scrub_2,scrub_3,scrub_4, scrub_5, scrub_6, scrub_7, scrub_8, scrub_9]
 
-# ╔═╡ 75ebae9f-1c69-4d92-9cdf-a0f4b0971576
+# ╔═╡ 5c9ac0b7-11e7-4f52-90ff-04ce131c61d8
 begin
 σ = [[0 1; 1 0],  [0 -im; im 0],  [1 0; 0 -1]]
 	
-	function  qu_bit_system(epsilon  = 1, 
+σ_dim = [σ, σ, [[0 1 0; 1 0 0; 0 0 0], [0 -im 0; im 0 0; 0 0 0], [1 0 0; 0 -1 0; 0 0 0], 
+	 [0 0 1; 0 0 0; 1 0 0], [0 0 -im; 0 0 0; im 0 0], [0 0 0; 0 0 1; 0 1 0], 
+	 [0 0 0; 0 0 -im; 0 im 0], 1/sqrt(3) * [1 0 0; 0 1 0; 0 0 -2]]
+]
+end
+
+# ╔═╡ 5663ed51-a921-4a8b-b351-86aca24420b6
+function  qu_bit_system(epsilon  = 1, 
 			alpha = [0,0,0], 
 			beta= [0,0,0], 
-			gamma = zeros(3,3))
+			gamma = zeros(3,3), dim_1 = 2, dim_2 = 2)
 			
-	return H = epsilon * kron(I(2),I(2)) +
-		sum([(I(2) ⊗ σ[i]) * alpha[i] for i = 1:3]) + 
-		sum([(σ[i] ⊗ I(2)) * beta[i] for i=1:3]) + 
-		sum([gamma[i,j] * (σ[i] ⊗ σ[j]) for i=1:3, j=1:3])
+	return H = epsilon * I(dim_1) ⊗ I(dim_2) +
+		sum([(I(dim_1) ⊗ σ_dim[dim_2][i]) * alpha[i] for i = 1:length(σ_dim[dim_2])]) + 
+		sum([(σ_dim[dim_1][i] ⊗ I(dim_2)) * beta[i] for i=1:length(σ_dim[dim_1])]) + 
+		sum([gamma[i,j] * (σ_dim[dim_1][i] ⊗ σ_dim[dim_2][j]) for i=1:length(σ_dim[dim_1]), j=1:length(σ_dim[dim_2])])
 	end
+
+# ╔═╡ 3140729e-d516-434d-ba32-3ff9705ee83b
+begin
+keep_working(text=md"The answer is not quite right.", title="Keep working on it!") = Markdown.MD(Markdown.Admonition("danger", title, [text]));
+
+almost(text, title="Almost there!") = Markdown.MD(Markdown.Admonition("warning", title, [text]));
+
+hint(text, title ="Hint") = Markdown.MD(Markdown.Admonition("hint", title, [text]));
+	
+correct(text=md"Great! You got the right answer! Let's move on to the next section.", title="Got it!") = Markdown.MD(Markdown.Admonition("correct", title, [text]));
+md" Definition of Boxes"
+end
+
+# ╔═╡ 75ebae9f-1c69-4d92-9cdf-a0f4b0971576
+begin
+
+
+
+	
 	
 	function density_pauli(α)
 		return α[1]/2 * I(2) + sum([α[i+1] * σ[i] for i = 1:3])
@@ -309,6 +540,32 @@ begin
 		n[3] .* ((i.-1) .% prod(n[1:2]) .÷ n[1] .+
 		n[2] .* ((i.-1) .÷ prod(n[1:3]))))
 	end
+
+	function choi2kraus(C,difference_map = false)
+		if norm(C - C') > 10^-10
+			#error("Choi matrix is not Hermitian!")
+			return almost(md"Choi Matrix is not Hermitian!", "Warning")
+		end
+		 eww,evv = eigen(Hermitian(C))
+
+		if (difference_map == false) & (any(eww .< 0))
+			return keep_working(md"Eigenvalues of Choi matrix are not positive!", "Error")
+			#error("Eigenvalues of Choi matrix are not positive!")
+		end
+		n = Int(sqrt(size(C,1)))
+		K = 2
+		K = [reshape(evv[:,k], n,n) * sqrt(abs(eww[k])) for k = 1:n^2]
+
+		if difference_map == true
+			ep = sign.(eww)
+			return K, ep
+		else 
+			return K
+		end
+	
+
+	end
+		
 
 	function ptr(ρ, dim_1, traced_system = 1, order="lex")
 		# get partial trace superoperator
@@ -390,23 +647,63 @@ begin
 	ϵ = [1,2]
 	α = [0,0,0]
 	β = [0,0,0]
-	γ = [1 0 0; 0 0 0; 0 0 0]
+	if coupling == "normal"
+		γ = [1 0 0; 0 0 0; 0 0 0]
+	elseif coupling == "weak"
+		γ = 0.1*[1 1 1; 1 1 1; 1 1 1]
+	elseif coupling == "strong"
+		γ = [10 20 10; -15 10 40; 23 12 30]
+	end
 	
-	H = qu_bit_system(0, α, β, γ) + I(2) ⊗ Diagonal([0,ϵ[2]]) + 
+	if initial_state == "s3b3"
+		ϵ = [1,2,4]
+		α = [0,0,0,0,0,0,0,0,0]
+		β = [0,0,0,0,0,0,0,0,0]
+		γ = unity(1,9)
+		H = I(3) ⊗ Diagonal([0,ϵ[2], ϵ[3] + ϵ[2]]) + 
+		Diagonal([0,ϵ[1], ϵ[3] + ϵ[1]])⊗ I(3) +	
+		5*qu_bit_system(0,α, β, γ,3,3)   
+	else
+		H = qu_bit_system(0, α, β, γ) + I(2) ⊗ Diagonal([0,ϵ[2]]) + 
 		Diagonal([0,ϵ[1]]) ⊗ I(2)
 	
-	
+		
+	end
 end
+
+# ╔═╡ 872b503b-4c40-4944-aefb-e52c559c72d5
+eigvals(exp(-im*H*time))
+
+# ╔═╡ 98c23700-c267-4c40-9a45-f5bb382c8429
+eigvals(conj.(exp(-im*H*time)))
 
 # ╔═╡ a5e38ca3-8184-4160-a6b1-4c1783c6e185
 begin
-	
+	dim_1 = 2
+	dim_2 = 2
 	if initial_state == "thesis"
 		rho_0 = qu_bit_system(1/4, [0.0, 0.00, +0.0], 
 							  [0.00, -0.0, -0.0], [0 0 0; 0 0 0; 1/4 0 0]) 
+	elseif initial_state == "back_in_time"
+		eps_time = -0.2
+		rho_0 = Hermitian(exp(-im*H*eps_time) * kron(I(2)/2 + σ[2]/3, I(2)/2 + σ[3]/4) * exp(im * H *eps_time))
 	elseif initial_state == "example"
-		rho_0 = qu_bit_system(1/4, [0.05, 0.00, +0.0], 
-							  [0.00, 0.05, -0.0], [0 0 0.05; 0.05 0 0; 0.05 0 0]) 
+		rho_0 = qu_bit_system(1/4, [0.00001, .010, +0.0], 
+							  [0.001, 0.00001, -0.0], [0 0.0001 0; 0 0 0.0001; 0.001 0 0]) 
+	elseif initial_state == "product_state"
+		rho_0 = kron(I(2)/2 + σ[1]/3, I(2)/2 + σ[1]/4)
+	elseif initial_state == "s3b3"
+		rho_0 = 1 * kron(I(3)/3 + [0 im 1; -im 0 0; 1 0 0]/5, I(3)/3+ 1/4 * [0 0 1; 0 0 0; 1 0 0])# + 
+				#2/3 * kron(I(3)/3+  [0 im 1; -im 0 0; 1 0 0]/5, I(3)/3) 
+		dim_1 = 3
+		dim_2 = 3
+		
+	elseif initial_state == "choi_positive"
+		rho_0 = [0.35304-0.0im          0.0+0.0im          0.0+0.0im      -0.03293-0.06263im;
+      0.0+0.0im      0.32484-0.0im      0.09992+0.00626im       0.0+0.0im;
+      0.0+0.0im      0.09992-0.00626im  0.17516-0.0im           0.0+0.0im;
+ -0.03293+0.06263im      0.0+0.0im          0.0+0.0im       0.14696+0.0im]
+
 	else
 		rho_0 = qu_bit_system(1/4, [a1, a2, a3], 
 								[b1, b2, b3], [s1 s2 s3; s4 s5 s6;s7 s8 s9])
@@ -423,73 +720,81 @@ begin
 	
 	#rho_0 = sum([kron(Pro[:,i] * Pro[:,i]', RHO_b[i]) for i = 1:Dim] .*prob)
 	
-	
-	
-	rho_t_0, rho_c = factorize(rho_0,2,2, order)
+	rho_t_0, rho_c = factorize(rho_0,dim_1,dim_2, order)
+	md""" 
+	Definition of $\rho_0$
+	"""
 end
+
+# ╔═╡ aedb8227-6f24-43ae-9634-32cf365ccdcc
+norm(γ) /norm(rho_c)
 
 # ╔═╡ 4f87569b-777e-4e97-ac80-8b7b76115d2a
 rho_0
 
+# ╔═╡ 5afc42f7-3253-438d-96a8-d665a1b9a1cd
+if any(eigvals(rho_0) .< 0)
+	keep_working(md"Tune the parameters such, that the initial state becomes positive: ``\rho(t_0)> 0``.
+		
+The current eigenvalues are: 
+		$(string(round.(eigvals(rho_0), digits = 2)))" ,"Initial state  not valid!")
+end
+
 # ╔═╡ b595349b-b572-4cc8-92b1-07631cc8fad7
 eigvals(rho_0) # eigenvalues of the initial state
+
+# ╔═╡ 49b3aeaf-ff2b-4805-bf4b-58aed5c49607
+rho_0
 
 # ╔═╡ 8cd0438c-c480-4b73-93af-79e3f3a5dfa9
 eigvals(rho_0)
 
 # ╔═╡ 596a9128-2fff-47e8-8b6f-e9fd8686a279
-[ptr(rho_0,2,2,order), ptr(rho_0,2,1,order)] #σ(t_0) and ρ_B(t_0)
+[ptr(rho_0,dim_1,2,order), ptr(rho_0,dim_1,1,order)] #σ(t_0) and ρ_B(t_0)
 
 # ╔═╡ c578581e-467e-482c-9cce-2ad55d32267f
-PPT(rho_0,2) #initial state is separable, but is it classical quantum correlated?
+PPT(rho_0,dim_1) #initial state is separable, but is it classical quantum correlated?
 
 # ╔═╡ 8c779399-7db0-421e-b1b2-659d28fc8c41
 begin 
 	#using the product state rho_t_0
-	rho_B = ptr(rho_t_0,2,1, order) # the bath denstiy matrix
-	sigma_0 = ptr(rho_t_0,2,2, order) # the system density matrix
+	rho_B = ptr(rho_t_0,dim_1,1, order) # the bath denstiy matrix
+	sigma_0 = ptr(rho_t_0,dim_1,2, order) # the system density matrix
 	compare = sigma_0 ⊗ rho_B - rho_t_0 #check if this is really a product state
 
 	U = exp(-im*H*time)
 	#NOTE: the choi matrix notation needs a transpose the match the lexicographical order
 	if order == "colex"
-		Λ = choi(choi(U,2) * kron(rho_B, I(2)) * choi(U,2)',2)#
+		Λ = choi(choi(U,dim_1) * kron(rho_B, I(dim_2)) * choi(U,dim_1)',dim_1)#
 	else
-		Λ = transpose(choi(transpose(choi(U,2)) * kron(I(2), rho_B) * transpose(choi(U,2))',2)) # this is a real Kronecker product
+		Λ = transpose(choi(transpose(choi(U,dim_1)) * kron(I(dim_1), rho_B) * transpose(choi(U,dim_1))',dim_1)) # this is a real Kronecker product
 	end
 
-	Λ_c = ptr(U * rho_c * U', 2, 2, order)[:] * collect(I(2)[:])'
+	Λ_c = ptr(U * rho_c * U', dim_1, 2, order)[:] * collect(I(dim_1)[:])'
 
-	test = density_matrix(2)
-	dyn_1 = reshape(Λ * test[:], 2,2)
+	test = density_matrix(dim_1)
+	dyn_1 = reshape(Λ * test[:], dim_1,dim_1)
 
 
 
-	dyn_2 = ptr(U * (test ⊗ rho_B) * U',2,2, order)
+	dyn_2 = ptr(U * (test ⊗ rho_B) * U',dim_1,2, order)
 	dyn_1 - dyn_2
 end
+
+# ╔═╡ 9a7de167-8474-4a22-99bf-66af8bffa736
+abs.(eigvals(Λ + Λ_c))
 
 # ╔═╡ 9330d1cf-e0e1-41c1-a876-5fae11633ce8
 Λ_c + Λ
 
-# ╔═╡ 04583ab3-2364-4c32-be8e-d3e65ca5321e
-round.(Λ + Λ_c, digits=2)
+# ╔═╡ 4f8ada04-10a7-4783-8709-db55428824b3
+sum(eigvals(Λ + Λ_c))
 
-# ╔═╡ 5d450f8d-c8c4-4a58-b2a6-97bfe109f91f
-begin
-	#check
-	
-	norm(ptr(U*rho_0*U',2,2, order)- reshape((Λ+Λ_c) * ptr(rho_0,2,2, order)[:],2,2))
-	
-end
+# ╔═╡ 15cb7806-8b8a-4920-9197-18dd80a67926
+sigma_0
 
-# ╔═╡ 4fb4c614-ed74-411e-91db-641c331c75fa
-eigvals(choi(Λ + Λ_c,2))
-# map is not completely positive
-
-# ╔═╡ 36df576e-5111-4d66-9170-2eb9573cea32
-pos_test(choi(Λ + Λ_c,2),1,2)
-# dynamical map is not positive
+# ╔═╡ 5d00c2ec-77c9-49a6-8020-a1919ce99bbb
+sigma_0
 
 # ╔═╡ 2cab05f7-bc59-4d26-a535-495b5ab104c0
 begin
@@ -507,6 +812,437 @@ eigvals(reshape((Λ + Λ_c)* sig_n[:],2,2))
 # ╔═╡ e63d17ba-767c-4136-8dc3-3da609f8dda5
 reshape((Λ + Λ_c)* sig_n[:],2,2)
 
+# ╔═╡ 1d31452b-5ccf-49ba-ac94-d5c28febe295
+sum(eigvals(Λ + Λ_c))
+
+# ╔═╡ a3ace2bc-5263-4868-a999-098f70e19483
+begin
+Λ₋ = (Λ + Λ_c)^-1
+# hermtiticity preserved, not complete positive!, 
+	eigvals(choi(Λ₋,dim_1))
+
+pos_test(choi(Λ₋,dim_1))
+	# not positive
+end
+
+# ╔═╡ 3006719e-ed10-4186-ade1-7c474af59883
+eigvals(reshape(Λ₋ * density_matrix(2)[:], dim_1, dim_1))
+
+# ╔═╡ a3c9bf88-4404-4a6c-9c18-f2e58c325729
+begin
+#map randomly created density matrices: find Pauli representations
+R = [density_matrix(2) for _=1:1000]
+	#RR = reduce(hcat, pauli_coefficients.(R))
+delta = 0.05
+
+R = 	[I(2)/2 + σ[1] * i + σ[2] * j + σ[3] * k for i= -0.5:delta:0.5, j= -0.5:delta:0.5, 
+k = -0.5:delta:0.5]
+sig_inv = pauli_coefficients.([reshape(Λ₋ * R[i][:],2,2) for i = 1:length(R)])
+RR = reduce(hcat, sig_inv)
+rad = sqrt.(sum(reduce(hcat,pauli_coefficients.(R)).^2,dims = 1)[:])
+RR = RR[:,rad .< 0.5]
+rad = rad[rad .< 0.5]
+end
+
+# ╔═╡ 10a8a0e7-a7e0-48ba-a177-6df6cbeb5f78
+size(RR)
+
+# ╔═╡ 9863549d-e86e-4b0c-9c18-804b233cea89
+reduce(hcat, pauli_coefficients.(R))
+
+# ╔═╡ 7835a031-cffe-4d47-a47c-d8631f98ef2a
+[reshape(Λ₋ * R[i][:],2,2) for i = 1:length(R)]
+
+# ╔═╡ 254be7e0-d60a-45dc-8113-46fffe2cbd88
+ rad .< 0.5
+
+# ╔═╡ 4dae271b-27b9-460e-988c-d733d8d79e87
+begin
+plt2 = plot3d(
+    1,
+    xlim = (-0.6, 0.6),
+    ylim = (-0.6, 0.6),
+    zlim = (-0.6, 0.6),
+    title = "Lorenz Attractor",
+    marker = 2,
+)
+
+#Blochsphere
+upper(x,y) = 0.5 > x.^2 + y.^2 ? sqrt(0.5 - x.^2 - y.^2) : NaN
+
+scatter3d(RR[1,:], RR[2,:], RR[3,:], markerz = (rad .-minimum(rad)), m = (3, .3, :bluesred, Plots.stroke(0)), leg = false, cbar = true, w = 0, camera = [azim,hori], axis = :equal, xlabel = "σ₁", ylabel = "σ₂", zlabel = "σ₃")
+
+end
+
+# ╔═╡ 2921da97-0099-4662-9d7e-4a8696d85de5
+upper(.1,0.2)
+
+# ╔═╡ db14e9c5-2b72-4f8d-b1bc-c2f9d11b67a1
+function dynamical_map(t, rho_0 = rho_0, Ham = H)
+
+	rho_B = ptr(rho_0,dim_1,1,order)
+	sigma_0 = ptr(rho_0, dim_1,2,order)
+
+	rho_c = rho_0 - sigma_0 ⊗ rho_B
+
+	U = exp(-im * Ham * t)
+	if order == "colex"
+		Λ_0 = choi(choi(U,dim_1) * kron(rho_B, I(dim_2)) * choi(U,dim_1)',dim_1)#
+	else
+		Λ_0 = transpose(choi(transpose(choi(U,dim_1)) * kron(I(dim_2), rho_B) * transpose(choi(U,dim_1))',dim_1)) # this is a real Kronecker product
+	end
+	Λ_c = ptr(U * rho_c * U', dim_1, 2, order)[:] * collect(I(dim_1)[:])'
+	Λ = Λ_0 + Λ_c
+	return Λ
+
+end
+
+# ╔═╡ e20411a0-c43f-44c5-8a60-252348ef9501
+begin
+	#run time evolution for different times
+	t_time = 0:0.001:1
+	D =  dynamical_map.(t_time)
+	ews = real.(eigvals.(choi.(D,dim_1)))
+	eig_vector = reduce(hcat,ews)
+
+	sigma_time = [reshape(D[i] * sigma_0[:],dim_1,dim_1) for i = 1:length(t_time)]
+	sigma_vec = [real.(reduce(hcat,diag.(sigma_time))) ; real(reduce(hcat,diag.(sigma_time,1))); 	imag(reduce(hcat,diag.(sigma_time,1)))]
+	sigma_eig = real.(reduce(hcat,eigvals.(sigma_time)))
+end
+
+# ╔═╡ 3b7400dd-1c04-47f6-9f65-52bdedb63002
+round.(choi(D[2],dim_1),digits=7)
+
+# ╔═╡ 580ff266-927a-447a-9a48-9e64bf07b806
+real.(tr.(sqrt.(D.*transpose.(conj.(D)))))
+
+# ╔═╡ 00ed1878-0fc5-464e-8f9c-66484f4f369e
+# trace norm
+[sort(sqrt.(eigvals(D[40]*D[40]'))) sort(svdvals(D[40]))]
+# compare with singular values
+
+# ╔═╡ 40b50286-d099-41a1-b73c-167625b0221c
+begin
+plot(t_time, sigma_vec', label=["σ₁₁" "σ₂₂" "Re(σ₁₂)" "Im(σ₁₂)"], title="Reduced time evolution, analysis of σ")
+plot!(t_time, sigma_eig',linestyle=:dash, label=["λ₁" "λ₂"])
+end
+
+# ╔═╡ 994c73ac-d001-4930-b28a-705ea98cada7
+eigvals(choi(D[1],dim_1))
+
+# ╔═╡ 908235d9-f919-4d89-a9d8-d172f0bce524
+begin
+	H_test = rand(dim_1 * dim_2,dim_1 * dim_2) + rand(dim_1 * dim_2,dim_1 * dim_2) * im
+
+	H_test = H_test + H_test'
+eigvals(H_test)
+	U_test = [exp(-im * H_test * i) for i = t_time]
+# U_test () U_test'
+
+	U_cal = [kron(conj.(U_test[i]), U_test[i]) for i = 1:length(U_test)]
+	# U_cal is unitary!
+	# U_cal is normal but not Hermitian
+	
+
+ew_test = sum(reduce(hcat, [eigvals( U_cal[i] ) for i = 1:length(U_test)]), dims = 1)
+
+svd_test = sum(reduce(hcat, [svdvals( U_cal[i] ) for i = 1:length(U_test)]), dims = 1)
+
+	C_Ucal = [choi(U_cal[i], dim_1*dim_2) for i = 1:length(U_test)]
+	ew_choi_test = maximum(reduce(hcat,eigvals.(Hermitian.(C_Ucal))), dims = 1)
+
+	
+	
+end
+
+# ╔═╡ 13d983b3-d9af-4360-81c9-2fbc91907a2a
+begin
+plot(t_time, real.(ew_test)')
+plot!(t_time, abs.(svd_test)')
+plot!(t_time, ew_choi_test')
+
+end
+
+# ╔═╡ 4c85b70f-7d65-449e-9c17-9db3414e918a
+begin
+	# intermediate time evolution'
+inter_time
+t_inter_time = inter_time:0.001:maximum(t_time)
+U_inter = exp(-im * H * inter_time)
+rho_t_inter = U_inter*rho_0*U_inter'
+
+D_inter = map(t -> dynamical_map(t, rho_t_inter), t_inter_time .- inter_time)
+ews_inter = real.(eigvals.(choi.(D_inter,dim_1)))
+eig_vector_inter = reduce(hcat,ews_inter)
+end
+
+# ╔═╡ 48677999-941a-437c-90c2-e35ef44ee5f0
+(round.(rho_t_inter,digits=5))
+
+# ╔═╡ 50eca964-09a9-48ed-9b75-d3ac83e8b1d7
+f = t -> dynamical_map(t, rho_t_inter)
+
+# ╔═╡ 17264c91-b88a-4e92-a336-3695e4263037
+f(3)
+
+# ╔═╡ f80055ca-bea7-4ef3-80c2-a8892b374df3
+dynamical_map(0.1)
+
+# ╔═╡ 8393a842-397c-4600-bbca-2345ea06722e
+begin
+# get master equation operator
+
+	method = FiniteDifferenceMethod(1:5, 1)
+#dynamical_map
+round.(central_fdm(5,1)(dynamical_map,0), digits=10)
+	
+end
+
+# ╔═╡ f29ab0fa-72f6-49a4-abc2-492a32a88374
+begin
+
+	D_01 = dynamical_map(inter_time)
+	D_02 = dynamical_map(inter_time + 1)
+	D_12 = dynamical_map(1,rho_t_inter)
+	central_fdm(5,1)(t -> dynamical_map(t, rho_t_inter), 0)
+
+	D_10 = dynamical_map(-inter_time,rho_t_inter)
+
+end
+
+# ╔═╡ d170f96b-f329-482e-be03-0cbfc75c41dc
+(D_12 * D_01   - D_02 )#* sigma_0[:]
+
+# ╔═╡ 884c70c1-defe-4680-a575-6915a2917abc
+dynamical_map(-1, rho_t_inter)
+
+# ╔═╡ 6a2eecf5-998f-44b2-8576-db0092e706d9
+central_fdm(5,1)(t -> dynamical_map(t, rho_0), inter_time)
+
+# ╔═╡ 5d450f8d-c8c4-4a58-b2a6-97bfe109f91f
+begin
+	#check
+	
+	norm(ptr(U*rho_0*U',dim_1,2, order)- reshape((Λ+Λ_c) * ptr(rho_0,dim_1,2, order)[:],dim_1,dim_1))
+	
+end
+
+# ╔═╡ f617e5dc-f2f7-4d79-8258-b3c95de86653
+C_0 = choi(exp(-im*H*test_time),dim_1) * kron(rho_B, I(dim_2)) * choi(exp(-im*H*test_time),dim_1)'
+
+# ╔═╡ 637a2af1-d61a-4dff-aa30-f45c4ac95f6a
+C_0
+
+# ╔═╡ a2747d76-9f86-4bad-87a7-e71b9a24cbe8
+U_t = choi(exp(-im*H*test_time),dim_1)
+
+# ╔═╡ 3239e943-5328-41fd-9435-798504eb34a8
+real.(round.(U_t, digits = 1))
+
+# ╔═╡ 7179873b-53d2-44d4-a618-63ca58293b8d
+real.(round.(U_t * kron(density_matrix(dim_1), I(dim_2))*U_t',digits = 2))
+
+# ╔═╡ 59ee6550-c3ec-4874-8afe-e852a25d15b6
+C_c = 0.0 * round.(kron(I(dim_1), ptr(exp(-im*H_test*test_time) * rho_c * exp(im*H_test*test_time),dim_1,2,order)), digits = 6)
+
+# ╔═╡ 79a90d41-8846-49ac-8dc5-e615a9c26e38
+real.(eigvals(C_0 + 0* C_c))
+
+
+# ╔═╡ f7915998-5d2b-4fcb-bccf-c2163d9dc71b
+CU = (choi(exp(-im*H_test * test_time),dim_1))
+
+# ╔═╡ 1044ff8d-3778-4f69-93ec-fe4335cba189
+ptr(C_0,dim_1,1,order)
+
+# ╔═╡ eae36bd4-9733-43b1-8375-f1b3eab87aa0
+eigvals(ptr(exp(-im*H_test*test_time) * rho_c * exp(im*H_test*test_time),dim_1,2,order))
+
+# ╔═╡ b19b685a-edb2-4913-b21f-68015b961911
+begin
+t_21 = time - inter_time
+DD_21 = map(t -> dynamical_map(t, rho_t_inter), t_21)
+DD_10 = dynamical_map(inter_time, rho_0)
+DD_20 = dynamical_map(time, rho_0)
+test_sig = sigma_0 * 0.999 + 0.001 * density_matrix(2)
+end
+
+# ╔═╡ 62b3f7c0-5b11-4984-b433-55b6bd40b8a7
+DD_21 * DD_10 - DD_20
+
+# ╔═╡ 7e319790-26ac-4409-8d5d-ebc2962a87da
+abs.(eigvals(DD_21 * DD_10 - DD_20))
+# the dimension of the kernel of DD_21 * DD_10 - DD_20 is one corresponding to the initial value sigma_0 that set up DD_21
+# so the decomposition property holds only for the initial value sigma_0
+
+# Question: can one construct a composing family of dynamical maps just from the generators? -> turn generators into dynamical maps!
+
+# ╔═╡ 7a6ea79a-8c86-4bd7-ab36-92b9ccbe2289
+begin
+# basis for traceless operators
+	A = [zeros(ComplexF64,2,2) for _=1:4]
+	A[1] = I(2)/sqrt(2)
+	A[2:4] = [unity(i,2) for i = 2:4]
+	
+	for i = [4]
+		A[i] = (A[i] - I(2)/2).*sqrt(2)
+	end
+end
+
+# ╔═╡ 08606417-ef27-4944-afe1-42cdba38e2e4
+tr.(A)
+
+# ╔═╡ cc05e609-805a-47de-8824-dc446d2676e2
+[tr(A[i]*A[i]') for i = 1:4]
+
+# ╔═╡ 038aaf32-fccc-45b3-a586-248ab7b7e45f
+begin 
+	D_inv = D_01^-1
+	C_inv = choi(D_inv,dim_1)
+	eigvals(C_inv)
+
+end
+
+# ╔═╡ ffa20581-01a4-44c4-b89e-a4732243522c
+D_inv
+
+# ╔═╡ d4769c7b-22c6-4a2b-8943-ed0e4b11b749
+reshape(D_10 * ptr(rho_t_inter,dim_1,2,order)[:],dim_1,dim_1)
+
+# ╔═╡ 8c867b56-7980-4923-bc48-b6941238a555
+reshape(D_inv * ptr(rho_t_inter,dim_1,2,order)[:],dim_1,dim_1)
+
+# ╔═╡ 5d9ad62b-7c33-4da6-bfa7-5590e29b5c2e
+eigen(reshape(D_inv * density_matrix(dim_1)[:],dim_1,dim_1))
+
+# ╔═╡ 1edadbdf-3ed4-479c-94cf-61785b221d94
+# Function to calculate the derivatives of c_ij using a function
+
+function c_coefficients(t, start_rho = rho_0)
+	D =  dynamical_map(t, start_rho)
+
+	ew, ev = eigen(Hermitian(choi(D,2)))
+	ew[abs.(ew) .< 10^-10] .= 0
+
+	K = [reshape(ev[:,k],2,2) for k = 1:4] .* sqrt.(ew)
+	
+	K = K[ew .> 10^-13]
+	
+	#test if Kraus operators are correct
+	#norm(D - sum([kron(conj.(K[k]), K[k]) for k = 1:numel_K]))
+
+
+	
+	d = [tr(A[i]' * K[j]) for i = 1:4, j = 1:length(K)]
+	c = d*d'
+	c[1,1] -=2
+	return c
+end
+
+# ╔═╡ 1eaa2d93-b338-446f-9de0-e4516bb9963b
+ begin 
+	 c_coefficients(time) # returns the coefficients needed to derive Gamma matrix from the dynamical map Λ(t,t_0, rho_0)
+
+ end
+
+# ╔═╡ 2aef12dd-3095-4124-b2e3-c0faf4f5374d
+begin
+	time_Lindblad = 1.001
+	
+	#dynamical_map
+	a = central_fdm(5,1)(c_coefficients, time_Lindblad)
+	F = 1/4 * a[1,1] * I(2) + 1/sqrt(2) * sum([a[1,i] * A[i]' for i=2:4])
+	G = (F+F')/2
+	H_ = (F-F')/2im
+	#test: should be zero!
+	#norm(G-1/2* sum([a[i,j] * A[j]' * A[i] for i = 2:4, j = 2:4]))
+	
+	Γ = a[2:end,2:end] 
+	
+	#turns Lindblad form into superoperator (to make it compareable)
+	L = -im * (kron(I(2),H_) - kron(transpose(H_),I(2))) + sum([a[i,j] * (kron(conj.(A[j]), A[i]) - 1/2*(kron(I(2), A[j]'*A[i]) + kron(transpose(A[j]'*A[i]), I(2)))) for i=2:4,j=2:4])
+
+	#direct derivative of dynamical map:
+	
+	D_Λ = round.(central_fdm(5,1)(dynamical_map,time_Lindblad), digits=10)
+
+	#test whether they are equal
+	norm(D_Λ - L)
+end
+
+# ╔═╡ eeb71c28-e196-42d6-b31c-5efa5f84f432
+round.(D_Λ, digits=5)
+
+# ╔═╡ 5a5baf17-e71d-40f1-acdc-755f808e2c8f
+round.(L, digits = 5)
+
+# ╔═╡ 3c878be8-e26a-46ec-954b-059046f87b27
+Γ
+
+# ╔═╡ 53758ee5-3077-4d7c-ae5a-d939baeb4615
+eigen(a[2:4,2:4])
+
+# ╔═╡ 274b9ca1-8468-428f-8174-3f9946e0ddf2
+eigen(a)
+
+# ╔═╡ 89052766-79c4-4b4b-8cec-88e097bd7ab6
+D_Λ
+
+# ╔═╡ bb7bbeba-925a-46c2-8622-8f198255dd27
+c_test = c_coefficients(time_Lindblad)
+
+# ╔═╡ d9e5042a-24e1-4c1b-bd7d-1d3fd6e7dd90
+c_test[1,1] +=2
+
+# ╔═╡ d0d1e37e-3a76-4248-8744-b90cba30dd46
+eigen(c_test[2:4, 2:4])
+
+# ╔═╡ f294e282-36f3-4ff4-a5e1-590331103084
+begin
+
+K_der, eps_der = choi2kraus(choi(D_Λ,2), true)
+
+d_der = [tr(A[i]' * K_der[k]) for i = 1:4, k=1:4]
+a_der = d_der * Diagonal(eps_der) * d_der'
+
+	
+eigen(a_der[2:4, 2:4])
+# check if the representation is correct
+norm(D_Λ - sum([a_der[i,j] * kron(transpose(A[j]'), A[i]) for i=1:4, j=1:4]))
+
+
+#NOTE: since it is basically not possible to find a CPTP map that is CP around t_0 = 0 starting with correlations, there exists no Lindblad form
+end
+
+# ╔═╡ 88664112-e1c1-4c5c-86a2-6f53d26e3f56
+round.(a_der,digits=5)
+
+
+# ╔═╡ 398b2f8b-6df4-4618-94f2-502e7e5787f4
+norm(a-a_der)
+
+# ╔═╡ 6e24af59-2efe-4568-85b0-81a23414f505
+eigvals(choi(dynamical_map(time_Lindblad),2))
+
+# ╔═╡ fa33473c-f341-4a7c-b5a6-a27a45d48a36
+begin
+TT = density_matrix(2)
+	# do d/dt and Choi commute?
+ddt_Choi = central_fdm(5,1)(t -> choi(exp(-im * (TT ⊗ I(2)) * t),2), 0)
+Choi_ddt = choi(central_fdm(5,1)(t -> exp(-im * (TT ⊗  I(2)) * t), 0), 2)
+
+norm(ddt_Choi - Choi_ddt)
+	# anser is yes :D
+end
+
+# ╔═╡ 4fb4c614-ed74-411e-91db-641c331c75fa
+eigvals(choi(Λ + Λ_c,2))
+# map is not completely positive
+
+# ╔═╡ 36df576e-5111-4d66-9170-2eb9573cea32
+pos_test(choi(Λ + Λ_c,2),1,2)
+# dynamical map is not positive
+
 # ╔═╡ 5695cdc2-0da6-4ef1-9aa9-d553f9b194e4
 begin
 	
@@ -523,29 +1259,35 @@ C_t = sum([K_p[i][:] * K_p[i][:]' for i = 1:3]) - K_m[1][:] * K_m[1][:]'
 C_t - kron(I(2), density_pauli([0,a1,a2,a3]))
 end
 
-# ╔═╡ 3140729e-d516-434d-ba32-3ff9705ee83b
-begin
-keep_working(text=md"The answer is not quite right.", title="Keep working on it!") = Markdown.MD(Markdown.Admonition("danger", title, [text]));
+# ╔═╡ d18f0a0f-53b1-48c1-9910-9a0454db6957
+# correlation term
 
-almost(text, title="Almost there!") = Markdown.MD(Markdown.Admonition("warning", title, [text]));
-
-hint(text, title ="Hint") = Markdown.MD(Markdown.Admonition("hint", title, [text]));
-	
-correct(text=md"Great! You got the right answer! Let's move on to the next section.", title="Got it!") = Markdown.MD(Markdown.Admonition("correct", title, [text]));
-md" Definition of Boxes"
+function correlation_term(time, rho = rho_0)
+	rho_time = exp(-im * H * time) * rho * exp(im * H * time)
+	rho_tens, rho_c = factorize(rho_time,dim_1,2,order)
+	return rho_c
 end
+	
 
-# ╔═╡ 5afc42f7-3253-438d-96a8-d665a1b9a1cd
-if any(eigvals(rho_0) .< 0)
-	keep_working(md"Tune the parameters such, that the initial state becomes positive: ``\rho(t_0)> 0``.
-		
-The current eigenvalues are: 
-		$(string(round.(eigvals(rho_0), digits = 2)))" ,"Initial state  not valid!")
+# ╔═╡ e1abbd34-a276-4a79-939d-45a8a2af118c
+begin
+plot(t_time, eig_vector', title = "Eigenvalues of Choi matrix", label = ["λ₁" "λ₂" "λ₃"  "λ₄"])
+ew_D = eigvals.(D)
+	
+plot!(t_time, round.(sum.([abs.(ew_D[i]) for i = 1:length(ew_D)]), digits = 5), label = "unitary check", color = :blue)
+plot!(t_time, real.(round.(sum.((ew_D)), digits = 5)), label = "trace", color=:blue, linestyle = :dash)
+plot!(t_time, real.(tr.(sqrt.(D.*transpose.(conj.(D))))), color = :blue, linestyle = :dot, label = "sum of sing. values")
+plot!(t_inter_time, eig_vector_inter', linestyle = :dash, ylim = [-0.3,8.01], label = ["λ₁" "λ₂" "λ₃"  "λ₄"])
+#subplot = twinx()
+plot!(t_inter_time, 0.5 .* (-minimum(eig_vector_inter,dims=1) .> 10^-10)', color = :red, label = "violates cp?", legend = :outerright, rightmargin = -50mm)
+plot!(t_time,4 .+ norm.(correlation_term.(t_time)), color = :magenta, label = "|ρ_c|", ylim = [-.01, 4.51])
+	
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 Kronecker = "2c470bb0-bcc8-11e8-3dad-c9649493f05e"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
@@ -553,6 +1295,7 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
+FiniteDifferences = "~0.12.18"
 Kronecker = "~0.5.0"
 Plots = "~1.22.3"
 PlutoUI = "~0.7.12"
@@ -597,9 +1340,15 @@ version = "1.16.1+0"
 
 [[ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "e8a30e8019a512e4b6c56ccebc065026624660e8"
+git-tree-sha1 = "f885e7e7c124f8c92650d61b9477b9ac2ee607dd"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
-version = "1.7.0"
+version = "1.11.1"
+
+[[ChangesOfVariables]]
+deps = ["LinearAlgebra", "Test"]
+git-tree-sha1 = "9a1d594397670492219635b35a3d830b04730d62"
+uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
+version = "0.1.1"
 
 [[ColorSchemes]]
 deps = ["ColorTypes", "Colors", "FixedPointNumbers", "Random"]
@@ -621,9 +1370,9 @@ version = "0.12.8"
 
 [[Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "SHA", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "31d0151f5716b655421d9d75b7fa74cc4e744df2"
+git-tree-sha1 = "dce3e3fea680869eaa0b774b2e8343e9ff442313"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "3.39.0"
+version = "3.40.0"
 
 [[CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -669,6 +1418,12 @@ uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 deps = ["Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
+[[DocStringExtensions]]
+deps = ["LibGit2"]
+git-tree-sha1 = "b19534d1895d702889b219c382a6e18010797f0b"
+uuid = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
+version = "0.8.6"
+
 [[Downloads]]
 deps = ["ArgTools", "LibCURL", "NetworkOptions"]
 uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
@@ -696,6 +1451,12 @@ deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers",
 git-tree-sha1 = "d8a578692e3077ac998b50c0217dfd67f21d1e5f"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.0+0"
+
+[[FiniteDifferences]]
+deps = ["ChainRulesCore", "LinearAlgebra", "Printf", "Random", "Richardson", "StaticArrays"]
+git-tree-sha1 = "9a586f04a21e6945f4cbee0d0fb6aebd7b86aa8f"
+uuid = "26cc04aa-876d-5657-8c51-4c34ba976000"
+version = "0.12.18"
 
 [[FixedPointNumbers]]
 deps = ["Statistics"]
@@ -741,9 +1502,9 @@ version = "0.59.0"
 
 [[GR_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Cairo_jll", "FFMPEG_jll", "Fontconfig_jll", "GLFW_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "Pixman_jll", "Pkg", "Qt5Base_jll", "Zlib_jll", "libpng_jll"]
-git-tree-sha1 = "ef49a187604f865f4708c90e3f431890724e9012"
+git-tree-sha1 = "fd75fa3a2080109a2c0ec9864a6e14c60cca3866"
 uuid = "d2c73de3-f751-5644-a686-071e5b155ba9"
-version = "0.59.0+0"
+version = "0.62.0+0"
 
 [[GeometryBasics]]
 deps = ["EarCut_jll", "IterTools", "LinearAlgebra", "StaticArrays", "StructArrays", "Tables"]
@@ -787,9 +1548,9 @@ uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "2.8.1+0"
 
 [[HypertextLiteral]]
-git-tree-sha1 = "72053798e1be56026b81d4e2682dbe58922e5ec9"
+git-tree-sha1 = "2b078b5a615c6c0396c77810d92ee8c6f470d238"
 uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
-version = "0.9.0"
+version = "0.9.3"
 
 [[IOCapture]]
 deps = ["Logging", "Random"]
@@ -806,6 +1567,17 @@ version = "0.5.0"
 [[InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+
+[[InverseFunctions]]
+deps = ["Test"]
+git-tree-sha1 = "a7254c0acd8e62f1ac75ad24d5db43f5f19f3c65"
+uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
+version = "0.1.2"
+
+[[IrrationalConstants]]
+git-tree-sha1 = "7fd44fd4ff43fc60815f8e764c0f352b83c49151"
+uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
+version = "0.1.1"
 
 [[IterTools]]
 git-tree-sha1 = "05110a2ab1fc5f932622ffea2a003221f4782c18"
@@ -854,15 +1626,15 @@ uuid = "dd4b983a-f0e5-5f8d-a1b7-129d4a5fb1ac"
 version = "2.10.1+0"
 
 [[LaTeXStrings]]
-git-tree-sha1 = "c7f1c695e06c01b95a67f0cd1d34994f3e7db104"
+git-tree-sha1 = "f2355693d6778a178ade15952b7ac47a4ff97996"
 uuid = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
-version = "1.2.1"
+version = "1.3.0"
 
 [[Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "a4b12a1bd2ebade87891ab7e36fdbce582301a92"
+git-tree-sha1 = "a8f4f279b6fa3c3c4f1adadd78a621b13a506bce"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.15.6"
+version = "0.15.9"
 
 [[LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -885,9 +1657,9 @@ uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 
 [[Libffi_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "761a393aeccd6aa92ec3515e428c26bf99575b3b"
+git-tree-sha1 = "0b4a5d71f3e5200a7dff793393e09dfc2d874290"
 uuid = "e9f186c6-92d2-5b65-8a66-fee21dc1b490"
-version = "3.2.2+0"
+version = "3.2.2+1"
 
 [[Libgcrypt_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libgpg_error_jll", "Pkg"]
@@ -935,14 +1707,20 @@ version = "2.36.0+0"
 deps = ["Libdl"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
+[[LogExpFunctions]]
+deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
+git-tree-sha1 = "be9eef9f9d78cecb6f262f3c10da151a6c5ab827"
+uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
+version = "0.3.5"
+
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[MacroTools]]
 deps = ["Markdown", "Random"]
-git-tree-sha1 = "5a5bc6bf062f0f95e62d0fe0a2d99699fed82dd9"
+git-tree-sha1 = "3d3e902b31198a27340d0bf00d6ac452866021cf"
 uuid = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
-version = "0.5.8"
+version = "0.5.9"
 
 [[Markdown]]
 deps = ["Base64"]
@@ -982,9 +1760,9 @@ version = "0.3.5"
 
 [[NamedDims]]
 deps = ["AbstractFFTs", "ChainRulesCore", "CovarianceEstimation", "LinearAlgebra", "Pkg", "Requires", "Statistics"]
-git-tree-sha1 = "fb4530603a1e62aa5ed7569f283d4b47c2a92f61"
+git-tree-sha1 = "1bb9558fad77d915edd65ef84772a6cd91214346"
 uuid = "356022a1-0364-5f58-8944-0da4b18d706f"
-version = "0.2.38"
+version = "0.2.41"
 
 [[NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
@@ -1020,9 +1798,9 @@ version = "8.44.0+0"
 
 [[Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "a8709b968a1ea6abc2dc1967cb1db6ac9a00dfb6"
+git-tree-sha1 = "ae4bbcadb2906ccc085cf52ac286dc1377dceccc"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.0.5"
+version = "2.1.2"
 
 [[Pixman_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1042,9 +1820,9 @@ version = "2.0.1"
 
 [[PlotUtils]]
 deps = ["ColorSchemes", "Colors", "Dates", "Printf", "Random", "Reexport", "Statistics"]
-git-tree-sha1 = "2537ed3c0ed5e03896927187f5f2ee6a4ab342db"
+git-tree-sha1 = "b084324b4af5a438cd63619fd006614b3b20b87b"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "1.0.14"
+version = "1.0.15"
 
 [[Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs"]
@@ -1104,6 +1882,12 @@ git-tree-sha1 = "4036a3bd08ac7e968e27c203d45f5fff15020621"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.1.3"
 
+[[Richardson]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "e03ca566bec93f8a3aeb059c8ef102f268a38949"
+uuid = "708f8203-808e-40c0-ba2d-98a6953ed40d"
+version = "1.4.0"
+
 [[SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
@@ -1141,9 +1925,9 @@ uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [[StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "3240808c6d463ac46f1c1cd7638375cd22abbccb"
+git-tree-sha1 = "3c76dde64d03699e074ac02eb2e8ba8254d428da"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.2.12"
+version = "1.2.13"
 
 [[Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -1155,10 +1939,10 @@ uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
 version = "1.0.0"
 
 [[StatsBase]]
-deps = ["DataAPI", "DataStructures", "LinearAlgebra", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
-git-tree-sha1 = "8cbbc098554648c84f79a463c9ff0fd277144b6c"
+deps = ["DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
+git-tree-sha1 = "eb35dcc66558b2dda84079b9a1be17557d32091a"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
-version = "0.33.10"
+version = "0.33.12"
 
 [[StructArrays]]
 deps = ["Adapt", "DataAPI", "StaticArrays", "Tables"]
@@ -1178,9 +1962,9 @@ version = "1.0.1"
 
 [[Tables]]
 deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
-git-tree-sha1 = "1162ce4a6c4b7e31e0e6b14486a6986951c73be9"
+git-tree-sha1 = "fed34d0e71b91734bf0a7e10eb1bb05296ddbcd0"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.5.2"
+version = "1.6.0"
 
 [[Tar]]
 deps = ["ArgTools", "SHA"]
@@ -1415,37 +2199,140 @@ version = "0.9.1+5"
 
 # ╔═╡ Cell order:
 # ╟─21712488-f636-4861-913c-012693cb524d
-# ╟─89b58dd0-c70c-4566-b991-2d739990f2ff
+# ╠═89b58dd0-c70c-4566-b991-2d739990f2ff
 # ╟─23c019dd-53d2-461e-a6ba-f1b5da2f6710
 # ╠═f5992b42-ff99-479a-b093-70a9bfd85655
 # ╠═0a95d032-8576-492f-bee1-ef67303bcb3a
-# ╠═7458474c-3c4d-4a99-9640-4bfd2e6465ea
-# ╠═edf8bfba-ca6b-4adf-9a7d-e618ca511a80
-# ╠═d7f3dc01-1201-41de-8a63-c3e2bc020cf6
-# ╠═2e2854f6-8cab-4252-a580-7abc71efd2a0
-# ╠═a646342f-3177-4579-8625-cb7d7ea27a49
-# ╠═792748ec-199c-41d8-a801-6cd97881ee72
 # ╟─85bca31d-c3be-46b6-b330-b80648472378
 # ╟─ebd5efea-94b6-419e-8ff1-9dcf624ddaba
-# ╟─c8e02ee8-2c21-4a37-9875-c4a463e0b462
+# ╟─c4406548-2119-480f-9438-22cd8c27e8f3
+# ╠═aedb8227-6f24-43ae-9634-32cf365ccdcc
+# ╠═c8e02ee8-2c21-4a37-9875-c4a463e0b462
 # ╟─913d405a-e525-49d6-9021-227543b37953
 # ╟─4f87569b-777e-4e97-ac80-8b7b76115d2a
-# ╟─a36e5515-e7f9-4c34-a48e-52a004d80f23
-# ╟─fc12024b-2785-4f89-a457-95a2deb5045f
-# ╟─5afc42f7-3253-438d-96a8-d665a1b9a1cd
+# ╠═a36e5515-e7f9-4c34-a48e-52a004d80f23
 # ╠═a5e38ca3-8184-4160-a6b1-4c1783c6e185
+# ╟─5afc42f7-3253-438d-96a8-d665a1b9a1cd
+# ╟─fc12024b-2785-4f89-a457-95a2deb5045f
+# ╠═62b3f7c0-5b11-4984-b433-55b6bd40b8a7
+# ╠═e1abbd34-a276-4a79-939d-45a8a2af118c
+# ╟─f850340c-7a18-4693-8822-7ef29e3d2675
+# ╠═3b7400dd-1c04-47f6-9f65-52bdedb63002
+# ╠═580ff266-927a-447a-9a48-9e64bf07b806
+# ╠═00ed1878-0fc5-464e-8f9c-66484f4f369e
+# ╟─40b50286-d099-41a1-b73c-167625b0221c
+# ╠═994c73ac-d001-4930-b28a-705ea98cada7
 # ╠═596a9128-2fff-47e8-8b6f-e9fd8686a279
 # ╠═b595349b-b572-4cc8-92b1-07631cc8fad7
 # ╠═c578581e-467e-482c-9cce-2ad55d32267f
 # ╟─7479e663-e533-442c-8324-c60f4849c470
 # ╟─0872a46c-4f4b-49fa-8152-9193b71f332b
 # ╠═8c779399-7db0-421e-b1b2-659d28fc8c41
+# ╠═9a7de167-8474-4a22-99bf-66af8bffa736
+# ╠═872b503b-4c40-4944-aefb-e52c559c72d5
+# ╠═98c23700-c267-4c40-9a45-f5bb382c8429
+# ╠═95c1685e-039b-492b-8a8c-d2914036addb
+# ╟─c39065df-e7dc-4f09-b5c5-6066eec391ba
+# ╠═a3ace2bc-5263-4868-a999-098f70e19483
+# ╠═3006719e-ed10-4186-ade1-7c474af59883
+# ╠═a3c9bf88-4404-4a6c-9c18-f2e58c325729
+# ╠═10a8a0e7-a7e0-48ba-a177-6df6cbeb5f78
+# ╠═9863549d-e86e-4b0c-9c18-804b233cea89
+# ╠═7835a031-cffe-4d47-a47c-d8631f98ef2a
+# ╠═254be7e0-d60a-45dc-8113-46fffe2cbd88
+# ╠═88dcaaef-4782-4c64-acbe-91c9052cc955
+# ╠═b4e4baa5-338a-43b4-9035-d6be8e2d5e17
+# ╟─4dae271b-27b9-460e-988c-d733d8d79e87
+# ╠═2921da97-0099-4662-9d7e-4a8696d85de5
+# ╟─19b181eb-8c95-41e2-9f4a-786cb5a25b8b
+# ╠═38459aa7-557c-4252-a150-ba475a52a860
+# ╠═001db95a-4b60-483f-a863-7142269c9bbf
+# ╠═455440b2-fc42-4db3-b9dd-eedd3406103a
+# ╠═67c8115a-eb59-4215-a23d-a00065baeaba
+# ╟─43b7be4e-9bae-4b1e-b536-4dd13aee7712
+# ╟─4754c50a-0d88-477d-a832-1c0eb8ccddac
+# ╠═908235d9-f919-4d89-a9d8-d172f0bce524
+# ╠═13d983b3-d9af-4360-81c9-2fbc91907a2a
+# ╟─b7dfd6ac-6246-4655-a2dd-3d0e46e2b87e
+# ╠═e20411a0-c43f-44c5-8a60-252348ef9501
+# ╠═c2af9765-647f-4f25-adc9-139f7333413c
+# ╠═4c85b70f-7d65-449e-9c17-9db3414e918a
+# ╠═48677999-941a-437c-90c2-e35ef44ee5f0
+# ╠═49b3aeaf-ff2b-4805-bf4b-58aed5c49607
+# ╠═50eca964-09a9-48ed-9b75-d3ac83e8b1d7
+# ╠═17264c91-b88a-4e92-a336-3695e4263037
+# ╠═db14e9c5-2b72-4f8d-b1bc-c2f9d11b67a1
+# ╠═f80055ca-bea7-4ef3-80c2-a8892b374df3
+# ╠═8393a842-397c-4600-bbca-2345ea06722e
 # ╠═e8c989d6-9ba6-40d1-ad36-d768172d5f5e
 # ╠═9330d1cf-e0e1-41c1-a876-5fae11633ce8
+# ╠═4f8ada04-10a7-4783-8709-db55428824b3
 # ╠═5d450f8d-c8c4-4a58-b2a6-97bfe109f91f
+# ╟─9a519b1a-6b0f-430c-869a-f8b902e862b6
+# ╠═ea84b314-dfaf-4799-ac46-541b6a1318cd
+# ╠═f617e5dc-f2f7-4d79-8258-b3c95de86653
+# ╠═a2747d76-9f86-4bad-87a7-e71b9a24cbe8
+# ╠═3239e943-5328-41fd-9435-798504eb34a8
+# ╠═7179873b-53d2-44d4-a618-63ca58293b8d
+# ╠═637a2af1-d61a-4dff-aa30-f45c4ac95f6a
+# ╠═59ee6550-c3ec-4874-8afe-e852a25d15b6
+# ╠═f7915998-5d2b-4fcb-bccf-c2163d9dc71b
+# ╠═79a90d41-8846-49ac-8dc5-e615a9c26e38
+# ╠═1044ff8d-3778-4f69-93ec-fe4335cba189
+# ╠═eae36bd4-9733-43b1-8375-f1b3eab87aa0
+# ╠═d6619751-decf-40a4-874a-cbf0571de81c
+# ╟─be1e32d7-a48a-404c-b25c-e435a9b4c0ce
+# ╠═b19b685a-edb2-4913-b21f-68015b961911
+# ╠═7e319790-26ac-4409-8d5d-ebc2962a87da
+# ╠═2cd1627f-6056-4c36-b089-c563097853f9
+# ╠═66b53661-7f06-4290-94a1-28240e29f067
+# ╠═9e17a64b-4b49-44fb-8b5d-b409d6897de1
+# ╠═a8c70b91-6783-4507-9194-0a26f1e49860
+# ╠═1eaa2d93-b338-446f-9de0-e4516bb9963b
+# ╟─6d2b167f-ded7-4e6d-9d77-e2a555d1b46c
+# ╠═c3696c66-4b84-40b6-af9f-d3c22ea84e35
+# ╟─80f1a784-acf1-4df0-a36b-02665257143f
+# ╟─8f273160-c0ab-41e2-85ac-653db2ee7438
+# ╠═7a6ea79a-8c86-4bd7-ab36-92b9ccbe2289
+# ╟─b9bc1429-bd9a-452b-9ddf-34b91217de96
+# ╠═08606417-ef27-4944-afe1-42cdba38e2e4
+# ╠═cc05e609-805a-47de-8824-dc446d2676e2
+# ╠═06883a55-b99c-4edd-ae8b-e9cc9abe2b99
+# ╠═f29ab0fa-72f6-49a4-abc2-492a32a88374
+# ╠═754b5aaf-841c-445d-ad8f-06a8e7ed391d
+# ╠═d170f96b-f329-482e-be03-0cbfc75c41dc
+# ╠═038aaf32-fccc-45b3-a586-248ab7b7e45f
+# ╠═d4769c7b-22c6-4a2b-8943-ed0e4b11b749
+# ╠═15cb7806-8b8a-4920-9197-18dd80a67926
+# ╠═884c70c1-defe-4680-a575-6915a2917abc
+# ╠═8c867b56-7980-4923-bc48-b6941238a555
+# ╠═ffa20581-01a4-44c4-b89e-a4732243522c
+# ╠═5d9ad62b-7c33-4da6-bfa7-5590e29b5c2e
+# ╠═5d00c2ec-77c9-49a6-8020-a1919ce99bbb
+# ╠═6a2eecf5-998f-44b2-8576-db0092e706d9
+# ╠═2aef12dd-3095-4124-b2e3-c0faf4f5374d
+# ╠═eeb71c28-e196-42d6-b31c-5efa5f84f432
+# ╠═5a5baf17-e71d-40f1-acdc-755f808e2c8f
+# ╠═1edadbdf-3ed4-479c-94cf-61785b221d94
+# ╠═3c878be8-e26a-46ec-954b-059046f87b27
+# ╠═3553ea01-ba81-48cd-be9f-886508a70a2d
+# ╠═f294e282-36f3-4ff4-a5e1-590331103084
+# ╠═eaafb3a3-a12b-4c5a-947a-2bcd376612c0
+# ╠═88664112-e1c1-4c5c-86a2-6f53d26e3f56
+# ╠═53758ee5-3077-4d7c-ae5a-d939baeb4615
+# ╠═bb7bbeba-925a-46c2-8622-8f198255dd27
+# ╠═d9e5042a-24e1-4c1b-bd7d-1d3fd6e7dd90
+# ╠═d0d1e37e-3a76-4248-8744-b90cba30dd46
+# ╠═274b9ca1-8468-428f-8174-3f9946e0ddf2
+# ╠═398b2f8b-6df4-4618-94f2-502e7e5787f4
+# ╠═89052766-79c4-4b4b-8cec-88e097bd7ab6
+# ╠═6e24af59-2efe-4568-85b0-81a23414f505
+# ╟─022cc2fa-f6d4-4fec-b7ac-645890984d46
+# ╠═fa33473c-f341-4a7c-b5a6-a27a45d48a36
+# ╟─558e2f3a-2942-4062-982e-f5c94c0f9588
+# ╠═878a884d-196c-4403-bc86-9e642956441c
 # ╟─5e1377b7-c784-4e42-8190-ffbf48f0ecc1
 # ╟─822ea5ab-4a3a-45ee-903c-ff9bad9d5f16
-# ╠═04583ab3-2364-4c32-be8e-d3e65ca5321e
 # ╠═4fb4c614-ed74-411e-91db-641c331c75fa
 # ╠═8cd0438c-c480-4b73-93af-79e3f3a5dfa9
 # ╠═36df576e-5111-4d66-9170-2eb9573cea32
@@ -1454,16 +2341,20 @@ version = "0.9.1+5"
 # ╠═faf456bc-9145-4d87-ad4d-6ecc8c78bd41
 # ╠═e63d17ba-767c-4136-8dc3-3da609f8dda5
 # ╠═002504f4-e74a-4e8c-80fa-f4c5f2e90df0
+# ╠═1d31452b-5ccf-49ba-ac94-d5c28febe295
 # ╟─4cdab1a4-1784-4430-ae4f-50a4459d83a4
 # ╠═5695cdc2-0da6-4ef1-9aa9-d553f9b194e4
 # ╠═0c09a3b6-920d-4732-af67-86b36bd88292
 # ╟─a558b847-3f09-473c-9ec5-70badcda7589
 # ╟─8407fc8c-95b4-4536-bbda-b3f4945518b0
-# ╠═104b6690-212b-11ec-3a2b-25c420f62534
+# ╟─104b6690-212b-11ec-3a2b-25c420f62534
 # ╠═7f43573f-010f-455a-82c7-f2f509cce3d3
 # ╠═d28b8274-7435-484a-bde7-61443d7e4ae2
 # ╠═dc95c17d-de0f-4b72-b57e-0dab473a69cd
+# ╠═5663ed51-a921-4a8b-b351-86aca24420b6
+# ╠═5c9ac0b7-11e7-4f52-90ff-04ce131c61d8
 # ╠═75ebae9f-1c69-4d92-9cdf-a0f4b0971576
+# ╠═d18f0a0f-53b1-48c1-9910-9a0454db6957
 # ╟─3140729e-d516-434d-ba32-3ff9705ee83b
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -61,80 +61,36 @@ begin
 	end
 end
 
-# ╔═╡ 7458474c-3c4d-4a99-9640-4bfd2e6465ea
-@bind 🍎 Scrubbable(1:10)
-
-# ╔═╡ edf8bfba-ca6b-4adf-9a7d-e618ca511a80
-@bind time_r Clock()
-
-# ╔═╡ d7f3dc01-1201-41de-8a63-c3e2bc020cf6
-σ₄ = 5
-
-# ╔═╡ 2e2854f6-8cab-4252-a580-7abc71efd2a0
-rand(2,2)  ⊗ I(2)
-
-# ╔═╡ a646342f-3177-4579-8625-cb7d7ea27a49
-🍎 + σ₄ + time_r
-
-# ╔═╡ 792748ec-199c-41d8-a801-6cd97881ee72
-🍎*4
-
 # ╔═╡ 85bca31d-c3be-46b6-b330-b80648472378
 md""" 
-# System Hamiltonian of bipartite system
+# Bipartite systems and tensor products
 """
 
-# ╔═╡ ebd5efea-94b6-419e-8ff1-9dcf624ddaba
+# ╔═╡ e0d868ad-346c-4248-8cc9-1857b50416ae
 md"""
-The system Hamiltonian for a bipartite system $\mathcal{H}_{\mathcal{A}} \otimes \mathcal{H}_{\mathcal{B}}$ is given by 
-
-$H = \sum_{i = \{\mathcal{A}, \mathcal{B}\}} \varepsilon_i \hat{n}_i + \sum_{i=1}^3 \alpha_i (\mathbb{1}_{\mathcal{A}} \otimes {\sigma}_i) + \sum_{i=1}^3 \beta_i ({\sigma}_i \otimes \mathbb{1}_{\mathcal{B}}) + \sum_{ij=1}^3 \gamma_{ij} ({\sigma}_i \otimes {\sigma}_j)$
-
-with Pauli matrices
-$\sigma_1 = \sigma_x = \begin{pmatrix} 0 & 1 \\ 1 & 0  \end{pmatrix}$,
-$\sigma_2 = \sigma_y = \begin{pmatrix} 0 & -i \\ i & 0  \end{pmatrix}$,
-$\sigma_3 = \sigma_z = \begin{pmatrix} 1 & 0 \\ 0 & -1\end{pmatrix}$
-
-
-
+# Superoperator notation
 """
 
-# ╔═╡ 913d405a-e525-49d6-9021-227543b37953
+# ╔═╡ 9cdf1fca-2c93-4eb1-b5a1-755d03cc35ca
 md"""
-# Initial state ``ρ(t_0)``
+## Factorizing superoperators
 """
 
-# ╔═╡ a36e5515-e7f9-4c34-a48e-52a004d80f23
-md"""
-Switch from different initial states 👉 $(@bind initial_state Select(["thesis" => "Example in 📖", "example" => "Another example 📍","slider"=> "Choose your own initial state 📐"]))
-"""
+# ╔═╡ abb6b274-cc08-40bc-a7bc-af2832694eaf
+begin
+m = 3
+n = 2
+o = 2
+p = 4
 
-# ╔═╡ 7479e663-e533-442c-8324-c60f4849c470
-md""" 
-# Dynamical map for different initial states
-"""
 
-# ╔═╡ 0872a46c-4f4b-49fa-8152-9193b71f332b
-md""" 
-## Initial product state
-"""
 
-# ╔═╡ 5e1377b7-c784-4e42-8190-ffbf48f0ecc1
-md""" 
-##  Initial classical-quantum correlated state
-"""
+A = rand(m,n)
+B = rand(o,p)
+end
 
-# ╔═╡ 822ea5ab-4a3a-45ee-903c-ff9bad9d5f16
-md""" 
-## Example of non--positive dynamical map
-"""
-
-# ╔═╡ 4cdab1a4-1784-4430-ae4f-50a4459d83a4
-md"""
-# Example of a non-accessible map
-The transposition superoperator
-
-"""
+# ╔═╡ 86bc0efb-5d4d-40e5-9fc5-f0e2b4864947
+size(A[:])
 
 # ╔═╡ a558b847-3f09-473c-9ec5-70badcda7589
 md"""
@@ -150,12 +106,6 @@ begin
 	md""" ## Interactive widgets
 	Definition of Sliders"""
 end
-
-# ╔═╡ e8c989d6-9ba6-40d1-ad36-d768172d5f5e
-time_slider
-
-# ╔═╡ 002504f4-e74a-4e8c-80fa-f4c5f2e90df0
-time_slider
 
 # ╔═╡ d28b8274-7435-484a-bde7-61443d7e4ae2
 begin
@@ -183,37 +133,6 @@ begin
 	
 	md" Definition of Scrubbables"
 end
-
-# ╔═╡ fc12024b-2785-4f89-a457-95a2deb5045f
-begin
-	if initial_state == "slider"
-		md"""
-		You can choose the parameters of the initial state:
-		
-		$\rho(t_0) =\frac{1}{4}\mathbb{1}_{\mathcal{A}} \otimes \mathbb{1}_{\mathcal{B}}+ \sum_{i=1}^3 \alpha_i (\mathbb{1}_{\mathcal{A}} \otimes {\sigma}_i) + \sum_{i=1}^3 \beta_i ({\sigma}_i \otimes \mathbb{1}_{\mathcal{B}}) + \sum_{ij=1}^3 \gamma_{ij} ({\sigma}_i \otimes {\sigma}_j)$
-		
-		``\alpha_1`` 👉 $(scrub_a1),  ``\alpha_2`` 👉 $(scrub_a2), ``\alpha_3`` 👉 $(scrub_a3)
-		
-		``\beta_1`` 👉 $(scrub_b1),  ``\beta_2`` 👉 $(scrub_b2), ``\beta_3`` 👉 $(scrub_b3)
-		
-		``\gamma_{11}`` 👉 $(scrub_1),  ``\gamma_{12}`` 👉 $(scrub_2), ``\gamma_{13}`` 👉 $(scrub_3)
-		
-		``\gamma_{21}`` 👉 $(scrub_4),  ``\gamma_{22}`` 👉 $(scrub_5), ``\gamma_{23}`` 👉 $(scrub_6)
-		
-		``\gamma_{31}`` 👉 $(scrub_7),  ``\gamma_{32}`` 👉 $(scrub_8), ``\gamma_{33}`` 👉 $(scrub_9)
-		
-		"""
-		
-		
-		
-	end
-end
-
-# ╔═╡ 1e4adc4d-52cf-41df-ad62-cab016f55397
-[scrub_i1, scrub_i2, scrub_i3]
-
-# ╔═╡ 0c09a3b6-920d-4732-af67-86b36bd88292
-scrub_a1, scrub_a2, scrub_a3
 
 # ╔═╡ dc95c17d-de0f-4b72-b57e-0dab473a69cd
 [scrub_1,scrub_2,scrub_3,scrub_4, scrub_5, scrub_6, scrub_7, scrub_8, scrub_9]
@@ -385,143 +304,40 @@ md"""
 """
 end
 
-# ╔═╡ c8e02ee8-2c21-4a37-9875-c4a463e0b462
+# ╔═╡ 9e76778f-803a-44be-b237-feb9bd65122e
 begin
-	ϵ = [1,2]
-	α = [0,0,0]
-	β = [0,0,0]
-	γ = [1 0 0; 0 0 0; 0 0 0]
+super_size = prod([m,n,o,p])
+rang = 1:super_size
+index_new = choi_index(rang,[o,m,p,n])
+C = sparse( choi_index(rang, [o,m,p,n]), rang,trues(super_size), super_size, super_size)
 	
-	H = qu_bit_system(0, α, β, γ) + I(2) ⊗ Diagonal([0,ϵ[2]]) + 
-		Diagonal([0,ϵ[1]]) ⊗ I(2)
-	
-	
+#C * Y[:] - C_AB[:]
 end
 
-# ╔═╡ a5e38ca3-8184-4160-a6b1-4c1783c6e185
-begin
-	
-	if initial_state == "thesis"
-		rho_0 = qu_bit_system(1/4, [0.0, 0.00, +0.0], 
-							  [0.00, -0.0, -0.0], [0 0 0; 0 0 0; 1/4 0 0]) 
-	elseif initial_state == "example"
-		rho_0 = qu_bit_system(1/4, [0.05, 0.00, +0.0], 
-							  [0.00, 0.05, -0.0], [0 0 0.05; 0.05 0 0; 0.05 0 0]) 
-	else
-		rho_0 = qu_bit_system(1/4, [a1, a2, a3], 
-								[b1, b2, b3], [s1 s2 s3; s4 s5 s6;s7 s8 s9])
-	end
-	
-	
-	# alternative
-	Dim = 2
-	RHO_b = [density_matrix(Dim) for _=1:Dim]
-	RHO_s = density_matrix(Dim)
-	evals, Pro = eigen(RHO_s)
-	
-	prob = prob_dist(Dim)
-	
-	#rho_0 = sum([kron(Pro[:,i] * Pro[:,i]', RHO_b[i]) for i = 1:Dim] .*prob)
-	
-	
-	
-	rho_t_0, rho_c = factorize(rho_0,2,2, order)
-end
-
-# ╔═╡ 4f87569b-777e-4e97-ac80-8b7b76115d2a
-rho_0
-
-# ╔═╡ b595349b-b572-4cc8-92b1-07631cc8fad7
-eigvals(rho_0) # eigenvalues of the initial state
-
-# ╔═╡ 8cd0438c-c480-4b73-93af-79e3f3a5dfa9
-eigvals(rho_0)
-
-# ╔═╡ 596a9128-2fff-47e8-8b6f-e9fd8686a279
-[ptr(rho_0,2,2,order), ptr(rho_0,2,1,order)] #σ(t_0) and ρ_B(t_0)
-
-# ╔═╡ c578581e-467e-482c-9cce-2ad55d32267f
-PPT(rho_0,2) #initial state is separable, but is it classical quantum correlated?
-
-# ╔═╡ 8c779399-7db0-421e-b1b2-659d28fc8c41
+# ╔═╡ 02f1a7fd-7024-4901-84ac-a5067b8fea08
 begin 
-	#using the product state rho_t_0
-	rho_B = ptr(rho_t_0,2,1, order) # the bath denstiy matrix
-	sigma_0 = ptr(rho_t_0,2,2, order) # the system density matrix
-	compare = sigma_0 ⊗ rho_B - rho_t_0 #check if this is really a product state
+Y = kron(A,B) #mn ⊗ op → om,pn
+# find T_1 so that T_1 \cdot B = Y
+compare = B[:] * transpose(A[:])
+C_AB = choi_rect(Y,o,m,p,n)
 
-	U = exp(-im*H*time)
-	#NOTE: the choi matrix notation needs a transpose the match the lexicographical order
-	if order == "colex"
-		Λ = choi(choi(U,2) * kron(rho_B, I(2)) * choi(U,2)',2)#
-	else
-		Λ = transpose(choi(transpose(choi(U,2)) * kron(I(2), rho_B) * transpose(choi(U,2))',2)) # this is a real Kronecker product
-	end
+T₁ = C'* kron(A[:], I(o*p))
+T₁ * B[:] - Y[:]
+	
+# find T_2 so that T_2 \cdot A = Y
 
-	Λ_c = ptr(U * rho_c * U', 2, 2, order)[:] * collect(I(2)[:])'
-
-	test = density_matrix(2)
-	dyn_1 = reshape(Λ * test[:], 2,2)
-
-
-
-	dyn_2 = ptr(U * (test ⊗ rho_B) * U',2,2, order)
-	dyn_1 - dyn_2
+T₂ = C' * kron(I(m*n), B[:])
+[norm(T₂ * A[:] - Y[:]), norm(T₁ * B[:] - Y[:])]
 end
 
-# ╔═╡ 9330d1cf-e0e1-41c1-a876-5fae11633ce8
-Λ_c + Λ
+# ╔═╡ e39d63a0-8191-4a7c-a118-07cc75e8f3c7
+C_AB - compare
 
-# ╔═╡ 04583ab3-2364-4c32-be8e-d3e65ca5321e
-round.(Λ + Λ_c, digits=2)
+# ╔═╡ bee24dc3-c007-441e-8a93-2e49cec65e42
+C * Y[:] - C_AB[:]
 
-# ╔═╡ 5d450f8d-c8c4-4a58-b2a6-97bfe109f91f
-begin
-	#check
-	
-	norm(ptr(U*rho_0*U',2,2, order)- reshape((Λ+Λ_c) * ptr(rho_0,2,2, order)[:],2,2))
-	
-end
-
-# ╔═╡ 4fb4c614-ed74-411e-91db-641c331c75fa
-eigvals(choi(Λ + Λ_c,2))
-# map is not completely positive
-
-# ╔═╡ 36df576e-5111-4d66-9170-2eb9573cea32
-pos_test(choi(Λ + Λ_c,2),1,2)
-# dynamical map is not positive
-
-# ╔═╡ 2cab05f7-bc59-4d26-a535-495b5ab104c0
-begin
-	sig_n = 1/2 * I(2) + i1 * σ[1] + i2 * σ[2] + i3*σ[3]
-	#pure state: a1 = -0.5
-	eigvals(sig_n)
-	#sig_n is not compatible:
-	eigvals((sig_n ⊗ rho_B) + rho_c)
-end
-
-# ╔═╡ faf456bc-9145-4d87-ad4d-6ecc8c78bd41
-eigvals(reshape((Λ + Λ_c)* sig_n[:],2,2))
-# yields negative result
-
-# ╔═╡ e63d17ba-767c-4136-8dc3-3da609f8dda5
-reshape((Λ + Λ_c)* sig_n[:],2,2)
-
-# ╔═╡ 5695cdc2-0da6-4ef1-9aa9-d553f9b194e4
-begin
-	
-	
-K_p = [1/2*(I(2) + σ[3]), 1/2*(I(2) - σ[3]), 1/sqrt(2)*σ[1]]
-K_m = 1/sqrt(2)*[im * σ[2]]
-Λ_t = sum([kron(conj.(K_p[i]), K_p[i]) for i = 1:3]) - kron(conj.(K_m[1]), K_m[1])
-	
-choi(Λ_t,2)	
-	
-C_t = sum([K_p[i][:] * K_p[i][:]' for i = 1:3]) - K_m[1][:] * K_m[1][:]'
-	
-
-C_t - kron(I(2), density_pauli([0,a1,a2,a3]))
-end
+# ╔═╡ b7d51c5b-35b2-4943-bab9-e46707925b91
+C-C'
 
 # ╔═╡ 3140729e-d516-434d-ba32-3ff9705ee83b
 begin
@@ -533,14 +349,6 @@ hint(text, title ="Hint") = Markdown.MD(Markdown.Admonition("hint", title, [text
 	
 correct(text=md"Great! You got the right answer! Let's move on to the next section.", title="Got it!") = Markdown.MD(Markdown.Admonition("correct", title, [text]));
 md" Definition of Boxes"
-end
-
-# ╔═╡ 5afc42f7-3253-438d-96a8-d665a1b9a1cd
-if any(eigvals(rho_0) .< 0)
-	keep_working(md"Tune the parameters such, that the initial state becomes positive: ``\rho(t_0)> 0``.
-		
-The current eigenvalues are: 
-		$(string(round.(eigvals(rho_0), digits = 2)))" ,"Initial state  not valid!")
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -1419,44 +1227,16 @@ version = "0.9.1+5"
 # ╟─23c019dd-53d2-461e-a6ba-f1b5da2f6710
 # ╠═f5992b42-ff99-479a-b093-70a9bfd85655
 # ╠═0a95d032-8576-492f-bee1-ef67303bcb3a
-# ╠═7458474c-3c4d-4a99-9640-4bfd2e6465ea
-# ╠═edf8bfba-ca6b-4adf-9a7d-e618ca511a80
-# ╠═d7f3dc01-1201-41de-8a63-c3e2bc020cf6
-# ╠═2e2854f6-8cab-4252-a580-7abc71efd2a0
-# ╠═a646342f-3177-4579-8625-cb7d7ea27a49
-# ╠═792748ec-199c-41d8-a801-6cd97881ee72
 # ╟─85bca31d-c3be-46b6-b330-b80648472378
-# ╟─ebd5efea-94b6-419e-8ff1-9dcf624ddaba
-# ╟─c8e02ee8-2c21-4a37-9875-c4a463e0b462
-# ╟─913d405a-e525-49d6-9021-227543b37953
-# ╟─4f87569b-777e-4e97-ac80-8b7b76115d2a
-# ╟─a36e5515-e7f9-4c34-a48e-52a004d80f23
-# ╟─fc12024b-2785-4f89-a457-95a2deb5045f
-# ╟─5afc42f7-3253-438d-96a8-d665a1b9a1cd
-# ╠═a5e38ca3-8184-4160-a6b1-4c1783c6e185
-# ╠═596a9128-2fff-47e8-8b6f-e9fd8686a279
-# ╠═b595349b-b572-4cc8-92b1-07631cc8fad7
-# ╠═c578581e-467e-482c-9cce-2ad55d32267f
-# ╟─7479e663-e533-442c-8324-c60f4849c470
-# ╟─0872a46c-4f4b-49fa-8152-9193b71f332b
-# ╠═8c779399-7db0-421e-b1b2-659d28fc8c41
-# ╠═e8c989d6-9ba6-40d1-ad36-d768172d5f5e
-# ╠═9330d1cf-e0e1-41c1-a876-5fae11633ce8
-# ╠═5d450f8d-c8c4-4a58-b2a6-97bfe109f91f
-# ╟─5e1377b7-c784-4e42-8190-ffbf48f0ecc1
-# ╟─822ea5ab-4a3a-45ee-903c-ff9bad9d5f16
-# ╠═04583ab3-2364-4c32-be8e-d3e65ca5321e
-# ╠═4fb4c614-ed74-411e-91db-641c331c75fa
-# ╠═8cd0438c-c480-4b73-93af-79e3f3a5dfa9
-# ╠═36df576e-5111-4d66-9170-2eb9573cea32
-# ╠═1e4adc4d-52cf-41df-ad62-cab016f55397
-# ╠═2cab05f7-bc59-4d26-a535-495b5ab104c0
-# ╠═faf456bc-9145-4d87-ad4d-6ecc8c78bd41
-# ╠═e63d17ba-767c-4136-8dc3-3da609f8dda5
-# ╠═002504f4-e74a-4e8c-80fa-f4c5f2e90df0
-# ╟─4cdab1a4-1784-4430-ae4f-50a4459d83a4
-# ╠═5695cdc2-0da6-4ef1-9aa9-d553f9b194e4
-# ╠═0c09a3b6-920d-4732-af67-86b36bd88292
+# ╟─e0d868ad-346c-4248-8cc9-1857b50416ae
+# ╠═9cdf1fca-2c93-4eb1-b5a1-755d03cc35ca
+# ╠═abb6b274-cc08-40bc-a7bc-af2832694eaf
+# ╠═02f1a7fd-7024-4901-84ac-a5067b8fea08
+# ╠═bee24dc3-c007-441e-8a93-2e49cec65e42
+# ╠═b7d51c5b-35b2-4943-bab9-e46707925b91
+# ╠═86bc0efb-5d4d-40e5-9fc5-f0e2b4864947
+# ╠═e39d63a0-8191-4a7c-a118-07cc75e8f3c7
+# ╠═9e76778f-803a-44be-b237-feb9bd65122e
 # ╟─a558b847-3f09-473c-9ec5-70badcda7589
 # ╟─8407fc8c-95b4-4536-bbda-b3f4945518b0
 # ╠═104b6690-212b-11ec-3a2b-25c420f62534
